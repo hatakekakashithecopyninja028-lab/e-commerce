@@ -19,7 +19,12 @@ const LoginPage = () => {
 
     if (result.success) {
       toast.success('Login successful!');
-      navigate('/');
+      // Redirect admin to admin panel, others to home
+      if (result.user?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } else {
       toast.error(result.error || 'Login failed');
     }

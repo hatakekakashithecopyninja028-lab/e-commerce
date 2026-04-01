@@ -37,7 +37,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
       setUser(data);
-      return { success: true };
+      // Trigger cart update
+      window.dispatchEvent(new Event('cart-update'));
+      return { success: true, user: data };
     } catch (error) {
       return { success: false, error: formatApiErrorDetail(error.response?.data?.detail) || error.message };
     }
@@ -47,7 +49,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await axios.post(`${API}/auth/register`, { email, password, name }, { withCredentials: true });
       setUser(data);
-      return { success: true };
+      // Trigger cart update
+      window.dispatchEvent(new Event('cart-update'));
+      return { success: true, user: data };
     } catch (error) {
       return { success: false, error: formatApiErrorDetail(error.response?.data?.detail) || error.message };
     }

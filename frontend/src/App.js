@@ -32,6 +32,18 @@ function App() {
     document.body.appendChild(script);
 
     fetchCart();
+    
+    // Listen for storage events to refetch cart when user logs in
+    const handleStorageChange = () => {
+      fetchCart();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('cart-update', fetchCart);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cart-update', fetchCart);
+    };
   }, []);
 
   const fetchCart = async () => {
