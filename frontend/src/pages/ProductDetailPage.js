@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/api';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import ProductCard from '../components/ProductCard';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -21,7 +19,7 @@ const ProductDetailPage = () => {
 
   const fetchProduct = async () => {
     try {
-      const { data } = await axios.get(`${API}/products/${id}`);
+      const { data } = await api.get(`/products/${id}`);
       setProduct(data);
     } catch (error) {
       console.error('Failed to fetch product:', error);
@@ -32,7 +30,7 @@ const ProductDetailPage = () => {
 
   const fetchSimilar = async () => {
     try {
-      const { data } = await axios.get(`${API}/products/${id}/similar`);
+      const { data } = await api.get(`/products/${id}/similar`);
       setSimilar(data);
     } catch (error) {
       console.error('Failed to fetch similar products');
@@ -41,14 +39,10 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = async () => {
     try {
-      await axios.post(`${API}/cart`, { product_id: id, quantity: 1 }, { withCredentials: true });
+      await api.post('/cart', { product_id: id, quantity: 1 });
       toast.success('Added to cart!');
     } catch (error) {
-      if (error.response?.status === 401) {
-        toast.error('Please login to add items');
-      } else {
-        toast.error('Failed to add to cart');
-      }
+      toast.error('Failed to add to cart');
     }
   };
 

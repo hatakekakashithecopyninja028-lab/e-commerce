@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/api';
 import { toast } from 'sonner';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const CheckoutPage = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
@@ -21,7 +19,7 @@ const CheckoutPage = () => {
 
   const fetchCart = async () => {
     try {
-      const { data } = await axios.get(`${API}/cart`, { withCredentials: true });
+      const { data } = await api.get('/cart');
       setCart(data);
     } catch (error) {
       navigate('/login');
@@ -33,10 +31,10 @@ const CheckoutPage = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post(`${API}/orders`, {
+      const { data } = await api.post('/orders', {
         address,
         payment_method: paymentMethod
-      }, { withCredentials: true });
+      });
 
       if (paymentMethod === 'razorpay') {
         const options = {
@@ -46,7 +44,12 @@ const CheckoutPage = () => {
           order_id: data.razorpay_order_id,
           handler: async (response) => {
             try {
-              await axios.post(`${API}/orders/${data.order_id}/verify-payment?razorpay_payment_id=${response.razorpay_payment_id}&razorpay_signature=${response.razorpay_signature}`, {}, { withCredentials: true });
+              await api.post(`/orders/${data.order_id}/verify-payment`, {}, { 
+                params: { 
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature 
+                } 
+              });
               toast.success('Payment successful!');
               navigate('/orders');
             } catch (error) {

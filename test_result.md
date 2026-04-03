@@ -101,3 +101,64 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "nhi hua fix - auth/cart/checkout not working after login"
+
+backend:
+  - task: "JWT Auth + Cookie Backend"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "JWT tokens, cookies set correctly in login/register"
+
+frontend:
+  - task: "Replace raw axios with api lib in CheckoutPage.js, CartPage.js"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/CheckoutPage.js, CartPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "nhi hua fix - likely checkout/cart auth fail"
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed raw axios → api, interceptor will handle 401"
+  - task: "App.js cart listener improvements"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added storage listener + proper cart reset"
+
+metadata:
+  created_by: "main"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "CheckoutPage auth/cart flow"
+    - "Login → Cart → Checkout → COD"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Fixed main auth issues per user 'nhi hua fix'. Test login user@test.com/user123 → add cart → checkout. Backend needs MongoDB running."
+

@@ -83,27 +83,45 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def get_current_user(request: Request) -> dict:
+    logger.info("[AUTH] get_current_user called")
     token = request.cookies.get("access_token")
+    logger.info(f"[AUTH] Cookie access_token: {'present' if token else 'MISSING'}")
     if not token:
         auth_header = request.headers.get("Authorization", "")
+        logger.info(f"[AUTH] Auth header: {auth_header[:50]}...")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
     if not token:
+        logger.warning("[AUTH] No token found")
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
+        logger.info(f"[AUTH] Decoding token: {token[:20]}...")
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        logger.info(f"[AUTH] Payload: sub={payload.get('sub')}, type={payload.get('type')}, exp={payload.get('exp')}")
         if payload.get("type") != "access":
+            logger.warning(f"[AUTH] Invalid token type: {payload.get('type')}")
             raise HTTPException(status_code=401, detail="Invalid token type")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        user_id = payload["sub"]
+        logger.info(f"[AUTH] Querying user _id={user_id}")
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        logger.info(f"[AUTH] User query result: {'found' if user else 'NOT FOUND'}")
         if not user:
+            logger.warning(f"[AUTH] User not found for _id={user_id}")
             raise HTTPException(status_code=401, detail="User not found")
         user["_id"] = str(user["_id"])
         user.pop("password_hash", None)
+        logger.info(f"[AUTH] Returning user: {user['email']}, role={user.get('role')}")
         return user
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
+        logger.warning(f"[AUTH] Token expired: {e}")
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"[AUTH] Invalid token: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"[AUTH] Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Auth error")
+
 
 async def get_admin_user(request: Request) -> dict:
     user = await get_current_user(request)
@@ -209,13 +227,38 @@ async def register(user_data: UserRegister, response: Response):
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
     
-    access_token = create_access_token(user_id, email, "user")
+    role = "user"
+    access_token = create_access_token(user_id, email, role)
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
-    
-    return {"id": user_id, "email": email, "name": user_data.name, "role": "user"}
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400,
+        path="/"
+    )
+    response.set_cookie(
+        key="refresh_token", 
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=604800,
+        path="/"
+    )
+
+    return {
+        "id": user_id, 
+        "email": email, 
+        "name": user_data.name, 
+        "role": role,
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin, response: Response):
@@ -225,13 +268,22 @@ async def login(credentials: UserLogin, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     user_id = str(user["_id"])
-    access_token = create_access_token(user_id, email, user.get("role", "user"))
+    role = user.get("role", "user")
+    access_token = create_access_token(user_id, email, role)
     refresh_token = create_refresh_token(user_id)
     
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
     
-    return {"id": user_id, "email": email, "name": user.get("name"), "role": user.get("role", "user")}
+    return {
+        "id": user_id, 
+        "email": email, 
+        "name": user.get("name"), 
+        "role": role,
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -243,6 +295,35 @@ async def logout(response: Response):
 async def get_me(request: Request):
     user = await get_current_user(request)
     return user
+
+@api_router.post("/auth/refresh")
+async def refresh_tokens(request: Request, response: Response):
+    token = request.cookies.get("refresh_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        user_id = str(user["_id"])
+        email = user["email"]
+        role = user.get("role", "user")
+        access_token = create_access_token(user_id, email, role)
+        refresh_token = create_refresh_token(user_id)
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400, path="/")
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+        return {"access_token": access_token, "refresh_token": refresh_token}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 # Product Routes
 @api_router.get("/products")
@@ -960,7 +1041,7 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import api from '../lib/api';
 
 const CartPage = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
@@ -17,7 +17,7 @@ const CartPage = () => {
 
   const fetchCart = async () => {
     try {
-      const { data } = await axios.get(`${API}/cart`, { withCredentials: true });
+      const { data } = await api.get('/cart');
       setCart(data);
     } catch (error) {
       if (error.response?.status === 401) {
@@ -30,7 +30,7 @@ const CartPage = () => {
 
   const updateQuantity = async (productId, quantity) => {
     try {
-      await axios.put(`${API}/cart/${productId}?quantity=${quantity}`, {}, { withCredentials: true });
+      await api.put(`/cart/${productId}`, null, { params: { quantity } });
       fetchCart();
     } catch (error) {
       toast.error('Failed to update cart');
@@ -39,7 +39,7 @@ const CartPage = () => {
 
   const removeItem = async (productId) => {
     try {
-      await axios.delete(`${API}/cart/${productId}`, { withCredentials: true });
+      await api.delete(`/cart/${productId}`);
       toast.success('Item removed');
       fetchCart();
     } catch (error) {

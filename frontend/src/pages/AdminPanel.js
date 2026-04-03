@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import api from '../lib/api';
 
 const AdminPanel = () => {
   const [products, setProducts] = useState([]);
@@ -21,9 +21,9 @@ const AdminPanel = () => {
   const fetchData = async () => {
     try {
       const [productsRes, ordersRes, usersRes] = await Promise.all([
-        axios.get(`${API}/products?limit=100`),
-        axios.get(`${API}/admin/orders`, { withCredentials: true }),
-        axios.get(`${API}/admin/users`, { withCredentials: true })
+        api.get('/products?limit=100'),
+        api.get('/admin/orders'),
+        api.get('/admin/users')
       ]);
       setProducts(productsRes.data.products || []);
       setOrders(ordersRes.data || []);
@@ -42,7 +42,7 @@ const AdminPanel = () => {
         discount: parseFloat(newProduct.discount),
         images: ['https://images.pexels.com/photos/7702669/pexels-photo-7702669.jpeg']
       };
-      await axios.post(`${API}/admin/products`, productData, { withCredentials: true });
+      await api.post('/admin/products', productData);
       toast.success('Product created!');
       fetchData();
       setNewProduct({
@@ -56,7 +56,7 @@ const AdminPanel = () => {
 
   const handleDeleteProduct = async (id) => {
     try {
-      await axios.delete(`${API}/admin/products/${id}`, { withCredentials: true });
+      await api.delete(`/admin/products/${id}`);
       toast.success('Product deleted');
       fetchData();
     } catch (error) {
@@ -66,7 +66,7 @@ const AdminPanel = () => {
 
   const handleUpdateOrderStatus = async (id, status) => {
     try {
-      await axios.put(`${API}/admin/orders/${id}?order_status=${status}`, {}, { withCredentials: true });
+      await api.put(`/admin/orders/${id}`, { order_status: status });
       toast.success('Order status updated');
       fetchData();
     } catch (error) {

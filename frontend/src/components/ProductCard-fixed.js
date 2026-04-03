@@ -15,8 +15,14 @@ const ProductCard = ({ product, onWishlistToggle }) => {
     try {
       await api.post('/cart', { product_id: product.id, quantity: 1 });
       toast.success('Added to cart!');
+      window.dispatchEvent(new Event('cart-update'));
     } catch (error) {
-      toast.error('Failed to add to cart');
+      const detail = formatApiErrorDetail(error.response?.data?.detail);
+      if (error.response?.status === 401) {
+        toast.error('Please login to add items to cart');
+      } else {
+        toast.error(detail || 'Failed to add to cart');
+      }
     }
   };
 
@@ -34,7 +40,12 @@ const ProductCard = ({ product, onWishlistToggle }) => {
       }
       if (onWishlistToggle) onWishlistToggle();
     } catch (error) {
-      toast.error('Failed to update wishlist');
+      const detail = formatApiErrorDetail(error.response?.data?.detail);
+      if (error.response?.status === 401) {
+        toast.error('Please login to manage wishlist');
+      } else {
+        toast.error(detail || 'Failed to update wishlist');
+      }
     }
   };
 

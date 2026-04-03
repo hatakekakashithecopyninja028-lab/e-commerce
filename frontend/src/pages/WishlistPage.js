@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import ProductCard from '../components/ProductCard';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const WishlistPage = () => {
   const [wishlist, setWishlist] = useState([]);
@@ -14,7 +12,7 @@ const WishlistPage = () => {
 
   const fetchWishlist = async () => {
     try {
-      const { data } = await axios.get(`${API}/wishlist`, { withCredentials: true });
+      const { data } = await api.get('/wishlist');
       setWishlist(data.items || []);
     } catch (error) {
       console.error('Failed to fetch wishlist');
