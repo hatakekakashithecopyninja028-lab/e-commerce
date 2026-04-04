@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = '    https://e-commerce-perfume-store.onrender.com';
 
 const api = axios.create({
   baseURL: API_BASE,
